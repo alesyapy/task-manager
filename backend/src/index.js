@@ -5,6 +5,7 @@ require("dotenv").config();
 const usersRoutes = require("./routes/users.routes");
 const boardsRoutes = require("./routes/boards.routes");
 const columnsRoutes = require("./routes/columns.routes");
+const cardsRoutes = require("./routes/cards.routes");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.get("/health", (req, res) => {
 app.use("/users", usersRoutes);
 app.use("/boards", boardsRoutes);
 app.use("/columns", columnsRoutes);
+app.use("/cards", cardsRoutes);
 
 const PORT = process.env.PORT || 3000;
 
