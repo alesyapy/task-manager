@@ -37,12 +37,21 @@ model Column {
   cards   Card[]
 }
 
+model CardImage {
+  id        String   @id @default(cuid())
+  url       String
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
 model Card {
   id          String   @id @default(cuid())
   title       String
   description String?
   dueDate     DateTime?
   order       Int
+  images      CardImage[]
   columnId    String
   column      Column   @relation(fields: [columnId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

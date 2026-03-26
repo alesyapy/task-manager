@@ -2,11 +2,7 @@ const prisma = require("../lib/prisma");
 
 async function getBoards(req, res) {
   try {
-    const boards = await prisma.board.findMany({
-      include: {
-        owner: true,
-      },
-    });
+    const boards = await prisma.board.findMany();
 
     res.json(boards);
   } catch (error) {
@@ -30,6 +26,9 @@ async function getBoardById(req, res) {
             cards: {
               orderBy: {
                 order: "asc",
+              },
+              include: {
+                images: true,
               },
             },
           },

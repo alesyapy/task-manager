@@ -6,6 +6,9 @@ async function getCards(req, res) {
       orderBy: {
         order: "asc",
       },
+      include: {
+        images: true,
+      },
     });
 
     res.json(cards);
@@ -31,6 +34,9 @@ async function createCard(req, res) {
         order: order ?? 0,
         columnId,
       },
+      include: {
+        images: true,
+      },
     });
 
     res.status(201).json(card);
@@ -40,7 +46,36 @@ async function createCard(req, res) {
   }
 }
 
+async function updateCard(req, res) {
+  try {
+    const { id } = req.params;
+    const { title, description, dueDate, order, columnId } = req.body;
+
+    const updatedCard = await prisma.card.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(dueDate !== undefined && {
+          dueDate: dueDate ? new Date(dueDate) : null,
+        }),
+        ...(order !== undefined && { order }),
+        ...(columnId !== undefined && { columnId }),
+      },
+      include: {
+        images: true,
+      },
+    });
+
+    res.json(updatedCard);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update card" });
+  }
+}
+
 module.exports = {
   getCards,
   createCard,
+  updateCard,
 };
