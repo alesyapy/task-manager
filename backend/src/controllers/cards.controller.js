@@ -74,8 +74,24 @@ async function updateCard(req, res) {
   }
 }
 
+async function deleteCard(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.card.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Card deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete card" });
+  }
+}
+
 module.exports = {
   getCards,
   createCard,
   updateCard,
+  deleteCard,
 };
