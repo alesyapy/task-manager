@@ -65,8 +65,32 @@ async function updateColumn(req, res) {
   }
 }
 
+async function deleteColumn(req, res) {
+  try {
+    const { id } = req.params;
+
+    const column = await prisma.column.findUnique({
+      where: { id },
+    });
+
+    if (!column) {
+      return res.status(404).json({ error: "Column not found" });
+    }
+
+    await prisma.column.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Column deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete column" });
+  }
+}
+
 module.exports = {
   getColumns,
   createColumn,
   updateColumn,
+  deleteColumn,
 };
