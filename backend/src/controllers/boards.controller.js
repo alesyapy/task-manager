@@ -91,9 +91,33 @@ async function updateBoard(req, res) {
   }
 }
 
+async function deleteBoard(req, res) {
+  try {
+    const { id } = req.params;
+
+    const board = await prisma.board.findUnique({
+      where: { id },
+    });
+
+    if (!board) {
+      return res.status(404).json({ error: "Board not found" });
+    }
+
+    await prisma.board.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Board deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete board" });
+  }
+}
+
 module.exports = {
   getBoards,
   getBoardById,
   createBoard,
   updateBoard,
+  deleteBoard,
 };
