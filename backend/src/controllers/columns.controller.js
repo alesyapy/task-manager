@@ -41,7 +41,32 @@ async function createColumn(req, res) {
   }
 }
 
+async function updateColumn(req, res) {
+  try {
+    const { id } = req.params;
+    const { title, order, boardId } = req.body;
+
+    const updatedColumn = await prisma.column.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(order !== undefined && { order }),
+        ...(boardId !== undefined && { boardId }),
+      },
+      include: {
+        cards: true,
+      },
+    });
+
+    res.json(updatedColumn);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update column" });
+  }
+}
+
 module.exports = {
   getColumns,
   createColumn,
+  updateColumn,
 };
