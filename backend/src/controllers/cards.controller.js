@@ -78,6 +78,14 @@ async function deleteCard(req, res) {
   try {
     const { id } = req.params;
 
+    const card = await prisma.card.findUnique({
+      where: { id },
+    });
+
+    if (!card) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+
     await prisma.card.delete({
       where: { id },
     });
