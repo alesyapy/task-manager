@@ -71,8 +71,29 @@ async function createBoard(req, res) {
   }
 }
 
+async function updateBoard(req, res) {
+  try {
+    const { id } = req.params;
+    const { title, ownerId } = req.body;
+
+    const updatedBoard = await prisma.board.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(ownerId !== undefined && { ownerId }),
+      },
+    });
+
+    res.json(updatedBoard);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update board" });
+  }
+}
+
 module.exports = {
   getBoards,
   getBoardById,
   createBoard,
+  updateBoard,
 };
