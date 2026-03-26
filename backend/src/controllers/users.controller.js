@@ -29,7 +29,27 @@ async function createUser(req, res) {
   }
 }
 
+async function updateUser(req, res) {
+  try {
+    const { id } = req.params;
+    const { username } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(username !== undefined && { username }),
+      },
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+}
+
 module.exports = {
   getUsers,
   createUser,
+  updateUser,
 };
