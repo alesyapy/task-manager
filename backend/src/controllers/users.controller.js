@@ -81,8 +81,42 @@ async function updateUser(req, res) {
   }
 }
 
+async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const boards = await prisma.board.findFirst({
+      where: { ownerId: id },
+    });
+
+    if (boards) {
+      return res.status(400).json({
+        error: "Cannot delete user because they have boards",
+      });
+    }
+
+    await prisma.user.delete({
+      where: { id },
+    });
+
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+}
+
 module.exports = {
   getUsers,
   createUser,
   updateUser,
+  deleteUser,
 };
