@@ -3,7 +3,6 @@ const prisma = require("../lib/prisma");
 async function getBoards(req, res) {
   try {
     const boards = await prisma.board.findMany();
-
     res.json(boards);
   } catch (error) {
     console.error(error);
@@ -19,14 +18,10 @@ async function getBoardById(req, res) {
       where: { id },
       include: {
         columns: {
-          orderBy: {
-            order: "asc",
-          },
+          orderBy: { order: "asc" },
           include: {
             cards: {
-              orderBy: {
-                order: "asc",
-              },
+              orderBy: { order: "asc" },
               include: {
                 images: true,
               },
@@ -52,9 +47,15 @@ async function createBoard(req, res) {
     const { title, ownerId } = req.body;
 
     if (!title || !ownerId) {
-      return res.status(400).json({
-        error: "title and ownerId are required",
-      });
+      return res.status(400).json({ error: "title and ownerId are required" });
+    }
+
+    const owner = await prisma.user.findUnique({
+      where: { id: ownerId },
+    });
+
+    if (!owner) {
+      return res.status(404).json({ error: "Owner not found" });
     }
 
     const board = await prisma.board.create({
@@ -75,6 +76,24 @@ async function updateBoard(req, res) {
   try {
     const { id } = req.params;
     const { title, ownerId } = req.body;
+
+    const board = await prisma.board.findUnique({
+      where: { id },
+    });
+
+    if (!board) {
+      return res.status(404).json({ error: "Board not found" });
+    }
+
+    if (ownerId !== undefined) {
+      const owner = await prisma.user.findUnique({
+        where: { id: ownerId },
+      });
+
+      if (!owner) {
+        return res.status(404).json({ error: "Owner not found" });
+      }
+    }
 
     const updatedBoard = await prisma.board.update({
       where: { id },

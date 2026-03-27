@@ -1,6 +1,7 @@
 const prisma = require("../lib/prisma");
 const fs = require("fs");
 const path = require("path");
+const { isValidDate } = require("../lib/validators");
 
 async function getCards(req, res) {
   try {
@@ -28,6 +29,18 @@ async function createCard(req, res) {
       return res.status(400).json({ error: "title and columnId are required" });
     }
 
+    const column = await prisma.column.findUnique({
+      where: { id: columnId },
+    });
+
+    if (!column) {
+      return res.status(404).json({ error: "Column not found" });
+    }
+
+    if (dueDate !== undefined && dueDate !== null && !isValidDate(dueDate)) {
+      return res.status(400).json({ error: "Invalid dueDate" });
+    }
+
     const card = await prisma.card.create({
       data: {
         title,
@@ -52,6 +65,28 @@ async function updateCard(req, res) {
   try {
     const { id } = req.params;
     const { title, description, dueDate, order, columnId } = req.body;
+
+    const card = await prisma.card.findUnique({
+      where: { id },
+    });
+
+    if (!card) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+
+    if (columnId !== undefined) {
+      const column = await prisma.column.findUnique({
+        where: { id: columnId },
+      });
+
+      if (!column) {
+        return res.status(404).json({ error: "Column not found" });
+      }
+    }
+
+    if (dueDate !== undefined && dueDate !== null && !isValidDate(dueDate)) {
+      return res.status(400).json({ error: "Invalid dueDate" });
+    }
 
     const updatedCard = await prisma.card.update({
       where: { id },
@@ -154,11 +189,11 @@ async function deleteCardImage(req, res) {
 
     const filePath = path.join(__dirname, "../../", image.url);
 
-    if (fs.existsSync(filePath)) { //из диска
+    if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    await prisma.cardImage.delete({ //из БД
+    await prisma.cardImage.delete({
       where: { id: imageId },
     });
 

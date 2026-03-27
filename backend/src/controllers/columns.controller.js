@@ -26,6 +26,14 @@ async function createColumn(req, res) {
       return res.status(400).json({ error: "title and boardId are required" });
     }
 
+    const board = await prisma.board.findUnique({
+      where: { id: boardId },
+    });
+
+    if (!board) {
+      return res.status(404).json({ error: "Board not found" });
+    }
+
     const column = await prisma.column.create({
       data: {
         title,
@@ -45,6 +53,24 @@ async function updateColumn(req, res) {
   try {
     const { id } = req.params;
     const { title, order, boardId } = req.body;
+
+    const column = await prisma.column.findUnique({
+      where: { id },
+    });
+
+    if (!column) {
+      return res.status(404).json({ error: "Column not found" });
+    }
+
+    if (boardId !== undefined) {
+      const board = await prisma.board.findUnique({
+        where: { id: boardId },
+      });
+
+      if (!board) {
+        return res.status(404).json({ error: "Board not found" });
+      }
+    }
 
     const updatedColumn = await prisma.column.update({
       where: { id },
