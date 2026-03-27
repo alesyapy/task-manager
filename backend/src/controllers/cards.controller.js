@@ -2,6 +2,7 @@ const prisma = require("../lib/prisma");
 const fs = require("fs");
 const path = require("path");
 const { isValidDate } = require("../lib/validators");
+const { deleteImageFiles } = require("../lib/fileCleanup");
 
 async function getCards(req, res) {
   try {
@@ -117,11 +118,16 @@ async function deleteCard(req, res) {
 
     const card = await prisma.card.findUnique({
       where: { id },
+      include: {
+        images: true,
+      },
     });
 
     if (!card) {
       return res.status(404).json({ error: "Card not found" });
     }
+
+    deleteImageFiles(card.images);
 
     await prisma.card.delete({
       where: { id },

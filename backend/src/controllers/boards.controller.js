@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { deleteImageFiles } = require("../lib/fileCleanup");
 
 async function getBoards(req, res) {
   try {
@@ -116,10 +117,27 @@ async function deleteBoard(req, res) {
 
     const board = await prisma.board.findUnique({
       where: { id },
+      include: {
+        columns: {
+          include: {
+            cards: {
+              include: {
+                images: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!board) {
       return res.status(404).json({ error: "Board not found" });
+    }
+
+    for (const column of board.columns) {
+      for (const card of column.cards) {
+        deleteImageFiles(card.images);
+      }
     }
 
     await prisma.board.delete({
