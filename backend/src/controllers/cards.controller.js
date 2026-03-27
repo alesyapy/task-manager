@@ -97,9 +97,51 @@ async function deleteCard(req, res) {
   }
 }
 
+async function uploadCardImages(req, res) {
+  try {
+    const { id } = req.params;
+
+    const card = await prisma.card.findUnique({
+      where: { id },
+    });
+
+    if (!card) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const imagesData = files.map((file) => ({
+      url: `/uploads/${file.filename}`,
+      cardId: id,
+    }));
+
+    await prisma.cardImage.createMany({
+      data: imagesData,
+    });
+
+    const updatedCard = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        images: true,
+      },
+    });
+
+    res.status(201).json(updatedCard);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to upload images" });
+  }
+}
+
 module.exports = {
   getCards,
   createCard,
   updateCard,
   deleteCard,
+  uploadCardImages,
 };
