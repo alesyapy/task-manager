@@ -1,4 +1,6 @@
 const prisma = require("../lib/prisma");
+const fs = require("fs");
+const path = require("path");
 
 async function getCards(req, res) {
   try {
@@ -138,10 +140,40 @@ async function uploadCardImages(req, res) {
   }
 }
 
+async function deleteCardImage(req, res) {
+  try {
+    const { imageId } = req.params;
+
+    const image = await prisma.cardImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image) {
+      return res.status(404).json({ error: "Image not found" });
+    }
+
+    const filePath = path.join(__dirname, "../../", image.url);
+
+    if (fs.existsSync(filePath)) { //из диска
+      fs.unlinkSync(filePath);
+    }
+
+    await prisma.cardImage.delete({ //из БД
+      where: { id: imageId },
+    });
+
+    res.json({ message: "Image deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete image" });
+  }
+}
+
 module.exports = {
   getCards,
   createCard,
   updateCard,
   deleteCard,
   uploadCardImages,
+  deleteCardImage,
 };
