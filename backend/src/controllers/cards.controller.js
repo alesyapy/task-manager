@@ -1,6 +1,4 @@
 const prisma = require("../lib/prisma");
-const fs = require("fs");
-const path = require("path");
 const { isValidDate } = require("../lib/validators");
 const { deleteImageFiles } = require("../lib/fileCleanup");
 
@@ -197,11 +195,7 @@ async function deleteCardImage(req, res) {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    const filePath = path.join(__dirname, "../../", image.url);
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    deleteImageFiles([image]); 
 
     await prisma.cardImage.delete({
       where: { id: imageId },

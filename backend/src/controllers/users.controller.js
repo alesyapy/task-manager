@@ -98,7 +98,7 @@ async function deleteUser(req, res) {
     });
 
     if (boards) {
-      return res.status(400).json({
+      return res.status(409).json({
         error: "Cannot delete user because they have boards",
       });
     }

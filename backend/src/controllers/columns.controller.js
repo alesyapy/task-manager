@@ -5,7 +5,14 @@ async function getColumns(req, res) {
   try {
     const columns = await prisma.column.findMany({
       include: {
-        cards: true,
+        cards: {
+          orderBy: {
+            order: "asc",
+          },
+          include: {
+            images: true,
+          },
+        },
       },
       orderBy: {
         order: "asc",
@@ -55,7 +62,7 @@ async function updateColumn(req, res) {
     const { id } = req.params;
     const { title, order, boardId } = req.body;
 
-    
+
     const column = await prisma.column.findUnique({
       where: { id },
     });
