@@ -26,7 +26,7 @@ async function createCard(req, res) {
   try {
     const { title, description, dueDate, order, columnId } = req.body;
 
-    if (!title || !columnId) {
+    if (!title || !title.trim()|| !columnId) {
       return res.status(400).json({ error: "title and columnId are required" });
     }
 
@@ -87,6 +87,10 @@ async function updateCard(req, res) {
 
     if (dueDate !== undefined && dueDate !== null && !isValidDate(dueDate)) {
       return res.status(400).json({ error: "Invalid dueDate" });
+    }
+
+    if (title !== undefined && !title.trim()) {
+      return res.status(400).json({ error: "Title cannot be empty" });
     }
 
     const updatedCard = await prisma.card.update({

@@ -47,7 +47,7 @@ async function createBoard(req, res) {
   try {
     const { title, ownerId } = req.body;
 
-    if (!title || !ownerId) {
+    if (!title || !title.trim() || !ownerId) {
       return res.status(400).json({ error: "title and ownerId are required" });
     }
 
@@ -94,6 +94,10 @@ async function updateBoard(req, res) {
       if (!owner) {
         return res.status(404).json({ error: "Owner not found" });
       }
+    }
+
+    if (title !== undefined && !title.trim()) {
+      return res.status(400).json({ error: "Title cannot be empty" });
     }
 
     const updatedBoard = await prisma.board.update({

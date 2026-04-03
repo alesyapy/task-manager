@@ -23,7 +23,7 @@ async function createColumn(req, res) {
   try {
     const { title, boardId, order } = req.body;
 
-    if (!title || !boardId) {
+    if (!title || !title.trim()|| !boardId) {
       return res.status(400).json({ error: "title and boardId are required" });
     }
 
@@ -55,6 +55,7 @@ async function updateColumn(req, res) {
     const { id } = req.params;
     const { title, order, boardId } = req.body;
 
+    
     const column = await prisma.column.findUnique({
       where: { id },
     });
@@ -71,6 +72,10 @@ async function updateColumn(req, res) {
       if (!board) {
         return res.status(404).json({ error: "Board not found" });
       }
+    }
+
+    if (title !== undefined && !title.trim()) {
+      return res.status(400).json({ error: "Title cannot be empty" });
     }
 
     const updatedColumn = await prisma.column.update({
