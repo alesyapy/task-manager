@@ -11,6 +11,7 @@ function BoardPage() {
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [cardForms, setCardForms] = useState({});
   const [editingCards, setEditingCards] = useState({});
+  const [imageFiles, setImageFiles] = useState({});
 
   useEffect(() => {
     loadBoard();
@@ -143,6 +144,55 @@ function BoardPage() {
     });
   }
 
+  function handleImageFileChange(cardId, files) {
+    setImageFiles((prev) => ({
+      ...prev,
+      [cardId]: files,
+    }));
+  }
+
+  async function handleUploadImages(cardId) {
+    try {
+      const files = imageFiles[cardId];
+
+      if (!files || files.length === 0) {
+        setError("Выберите хотя бы один файл");
+        return;
+      }
+
+      const formData = new FormData();
+
+      for (const file of files) {
+        formData.append("images", file);
+      }
+
+      await api.post(`/cards/${cardId}/images`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setImageFiles((prev) => {
+        const copy = { ...prev };
+        delete copy[cardId];
+        return copy;
+      });
+
+      loadBoard();
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось загрузить изображения");
+    }
+  }
+
+  async function handleDeleteImage(imageId) {
+    try {
+      await api.delete(`/cards/images/${imageId}`);
+      loadBoard();
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось удалить изображение");
+    }
+  }
+
   if (error) {
     return <div style={{ padding: "40px" }}>{error}</div>;
   }
@@ -210,19 +260,43 @@ function BoardPage() {
                         {card.images?.length > 0 && (
                           <div>
                             {card.images.map((image) => (
-                              <img
-                                key={image.id}
-                                src={`http://localhost:3000${image.url}`}
-                                alt="card"
-                                style={{
-                                  width: "100%",
-                                  marginTop: "8px",
-                                  borderRadius: "6px",
-                                }}
-                              />
+                              <div key={image.id} style={{ marginTop: "8px" }}>
+                                <img
+                                  src={`http://localhost:3000${image.url}`}
+                                  alt="card"
+                                  style={{
+                                    width: "100%",
+                                    borderRadius: "6px",
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteImage(image.id)}
+                                  style={{ marginTop: "6px" }}
+                                >
+                                  Удалить изображение
+                                </button>
+                              </div>
                             ))}
                           </div>
                         )}
+
+                        <div style={{ marginTop: "12px" }}>
+                          <input
+                            type="file"
+                            multiple
+                            onChange={(e) =>
+                              handleImageFileChange(card.id, e.target.files)
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUploadImages(card.id)}
+                            style={{ marginTop: "8px" }}
+                          >
+                            Загрузить изображение
+                          </button>
+                        </div>
 
                         <div
                           style={{
