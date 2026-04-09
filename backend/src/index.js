@@ -7,6 +7,7 @@ const usersRoutes = require("./routes/users.routes");
 const boardsRoutes = require("./routes/boards.routes");
 const columnsRoutes = require("./routes/columns.routes");
 const cardsRoutes = require("./routes/cards.routes");
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use("/users", usersRoutes);
 app.use("/boards", boardsRoutes);
 app.use("/columns", columnsRoutes);
 app.use("/cards", cardsRoutes);
+app.use("/auth", authRoutes);
 
 const PORT = process.env.PORT || 3000;
 
