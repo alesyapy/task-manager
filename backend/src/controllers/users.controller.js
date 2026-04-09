@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { normalizeText } = require("../lib/normalizers");
 
 async function getUsers(req, res) {
   try {
@@ -18,7 +19,7 @@ async function createUser(req, res) {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    username = username.trim();
+    username = normalizeText(username);
 
     const existingUser = await prisma.user.findUnique({
       where: { username },
@@ -52,12 +53,12 @@ async function updateUser(req, res) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (username !== undefined && !username.trim()) {
-      return res.status(400).json({ error: "Username cannot be empty" });
-    }
-
     if (username !== undefined) {
-      username = username.trim();
+      if (!username.trim()) {
+        return res.status(400).json({ error: "Username cannot be empty" });
+      }
+
+      username = normalizeText(username);
 
       const existingUser = await prisma.user.findFirst({
         where: {

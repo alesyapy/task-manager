@@ -1,5 +1,7 @@
 const prisma = require("../lib/prisma");
 const { deleteImageFiles } = require("../lib/fileCleanup");
+const { normalizeText } = require("../lib/normalizers");
+const { isValidOrder } = require("../lib/validators");
 
 async function getColumns(req, res) {
   try {
@@ -34,7 +36,11 @@ async function createColumn(req, res) {
       return res.status(400).json({ error: "title and boardId are required" });
     }
 
-    title = title.trim();
+    if (order !== undefined && !isValidOrder(order)) {
+      return res.status(400).json({ error: "Invalid order" });
+    }
+
+    title = normalizeText(title);
 
     const board = await prisma.board.findUnique({
       where: { id: boardId },
@@ -64,7 +70,6 @@ async function updateColumn(req, res) {
     const { id } = req.params;
     let { title, order, boardId } = req.body;
 
-
     const column = await prisma.column.findUnique({
       where: { id },
     });
@@ -83,12 +88,16 @@ async function updateColumn(req, res) {
       }
     }
 
+    if (order !== undefined && !isValidOrder(order)) {
+      return res.status(400).json({ error: "Invalid order" });
+    }
+
     if (title !== undefined) {
       if (!title.trim()) {
         return res.status(400).json({ error: "Title cannot be empty" });
       }
 
-      title = title.trim();
+      title = normalizeText(title);
     }
 
     const updatedColumn = await prisma.column.update({

@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { normalizeText } = require("../lib/normalizers");
 
 async function login(req, res) {
   try {
@@ -8,7 +9,7 @@ async function login(req, res) {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    username = username.trim();
+    username = normalizeText(username);
 
     let user = await prisma.user.findUnique({
       where: { username },

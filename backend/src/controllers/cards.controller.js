@@ -1,6 +1,7 @@
 const prisma = require("../lib/prisma");
-const { isValidDate } = require("../lib/validators");
+const { isValidDate, isValidOrder } = require("../lib/validators");
 const { deleteImageFiles } = require("../lib/fileCleanup");
+const { normalizeText } = require("../lib/normalizers");
 
 async function getCards(req, res) {
   try {
@@ -28,7 +29,11 @@ async function createCard(req, res) {
       return res.status(400).json({ error: "title and columnId are required" });
     }
 
-    title = title.trim();
+    if (order !== undefined && !isValidOrder(order)) {
+      return res.status(400).json({ error: "Invalid order" });
+    }
+
+    title = normalizeText(title);
 
     const column = await prisma.column.findUnique({
       where: { id: columnId },
@@ -85,15 +90,21 @@ async function updateCard(req, res) {
       }
     }
 
+    if (order !== undefined && !isValidOrder(order)) {
+      return res.status(400).json({ error: "Invalid order" });
+    }
+
     if (dueDate !== undefined && dueDate !== null && !isValidDate(dueDate)) {
       return res.status(400).json({ error: "Invalid dueDate" });
     }
 
-    if (!title || !title.trim() || !columnId) {
-      return res.status(400).json({ error: "title and columnId are required" });
-    }
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({ error: "Title cannot be empty" });
+      }
 
-    title = title.trim();
+      title = normalizeText(title);
+    }
 
     const updatedCard = await prisma.card.update({
       where: { id },
@@ -199,7 +210,7 @@ async function deleteCardImage(req, res) {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    deleteImageFiles([image]); 
+    deleteImageFiles([image]);
 
     await prisma.cardImage.delete({
       where: { id: imageId },

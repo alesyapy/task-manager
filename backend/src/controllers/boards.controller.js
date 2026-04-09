@@ -1,5 +1,6 @@
 const prisma = require("../lib/prisma");
 const { deleteImageFiles } = require("../lib/fileCleanup");
+const { normalizeText } = require("../lib/normalizers");
 
 async function getBoards(req, res) {
   try {
@@ -51,7 +52,7 @@ async function createBoard(req, res) {
       return res.status(400).json({ error: "title and ownerId are required" });
     }
 
-    title = title.trim();
+    title = normalizeText(title);
 
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },
@@ -103,7 +104,7 @@ async function updateBoard(req, res) {
         return res.status(400).json({ error: "Title cannot be empty" });
       }
 
-      title = title.trim();
+      title = normalizeText(title);
     }
 
     const updatedBoard = await prisma.board.update({
