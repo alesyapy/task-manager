@@ -2,11 +2,13 @@ const prisma = require("../lib/prisma");
 
 async function login(req, res) {
   try {
-    const { username } = req.body;
+    let { username } = req.body;
 
     if (!username || !username.trim()) {
       return res.status(400).json({ error: "Username is required" });
     }
+
+    username = username.trim();
 
     let user = await prisma.user.findUnique({
       where: { username },

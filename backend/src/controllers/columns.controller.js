@@ -28,11 +28,13 @@ async function getColumns(req, res) {
 
 async function createColumn(req, res) {
   try {
-    const { title, boardId, order } = req.body;
+    let { title, boardId, order } = req.body;
 
-    if (!title || !title.trim()|| !boardId) {
+    if (!title || !title.trim() || !boardId) {
       return res.status(400).json({ error: "title and boardId are required" });
     }
+
+    title = title.trim();
 
     const board = await prisma.board.findUnique({
       where: { id: boardId },
@@ -60,7 +62,7 @@ async function createColumn(req, res) {
 async function updateColumn(req, res) {
   try {
     const { id } = req.params;
-    const { title, order, boardId } = req.body;
+    let { title, order, boardId } = req.body;
 
 
     const column = await prisma.column.findUnique({
@@ -81,8 +83,12 @@ async function updateColumn(req, res) {
       }
     }
 
-    if (title !== undefined && !title.trim()) {
-      return res.status(400).json({ error: "Title cannot be empty" });
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({ error: "Title cannot be empty" });
+      }
+
+      title = title.trim();
     }
 
     const updatedColumn = await prisma.column.update({
@@ -93,7 +99,14 @@ async function updateColumn(req, res) {
         ...(boardId !== undefined && { boardId }),
       },
       include: {
-        cards: true,
+        cards: {
+          orderBy: {
+            order: "asc",
+          },
+          include: {
+            images: true,
+          },
+        },
       },
     });
 

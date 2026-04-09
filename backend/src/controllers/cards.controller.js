@@ -22,11 +22,13 @@ async function getCards(req, res) {
 
 async function createCard(req, res) {
   try {
-    const { title, description, dueDate, order, columnId } = req.body;
+    let { title, description, dueDate, order, columnId } = req.body;
 
-    if (!title || !title.trim()|| !columnId) {
+    if (!title || !title.trim() || !columnId) {
       return res.status(400).json({ error: "title and columnId are required" });
     }
+
+    title = title.trim();
 
     const column = await prisma.column.findUnique({
       where: { id: columnId },
@@ -63,7 +65,7 @@ async function createCard(req, res) {
 async function updateCard(req, res) {
   try {
     const { id } = req.params;
-    const { title, description, dueDate, order, columnId } = req.body;
+    let { title, description, dueDate, order, columnId } = req.body;
 
     const card = await prisma.card.findUnique({
       where: { id },
@@ -87,9 +89,11 @@ async function updateCard(req, res) {
       return res.status(400).json({ error: "Invalid dueDate" });
     }
 
-    if (title !== undefined && !title.trim()) {
-      return res.status(400).json({ error: "Title cannot be empty" });
+    if (!title || !title.trim() || !columnId) {
+      return res.status(400).json({ error: "title and columnId are required" });
     }
+
+    title = title.trim();
 
     const updatedCard = await prisma.card.update({
       where: { id },

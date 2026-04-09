@@ -12,11 +12,13 @@ async function getUsers(req, res) {
 
 async function createUser(req, res) {
   try {
-    const { username } = req.body;
+    let { username } = req.body;
 
     if (!username || !username.trim()) {
       return res.status(400).json({ error: "Username is required" });
     }
+
+    username = username.trim();
 
     const existingUser = await prisma.user.findUnique({
       where: { username },
@@ -40,7 +42,7 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { username } = req.body;
+    let { username } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -55,6 +57,8 @@ async function updateUser(req, res) {
     }
 
     if (username !== undefined) {
+      username = username.trim();
+
       const existingUser = await prisma.user.findFirst({
         where: {
           username,

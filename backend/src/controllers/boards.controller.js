@@ -45,11 +45,13 @@ async function getBoardById(req, res) {
 
 async function createBoard(req, res) {
   try {
-    const { title, ownerId } = req.body;
+    let { title, ownerId } = req.body;
 
     if (!title || !title.trim() || !ownerId) {
       return res.status(400).json({ error: "title and ownerId are required" });
     }
+
+    title = title.trim();
 
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },
@@ -76,7 +78,7 @@ async function createBoard(req, res) {
 async function updateBoard(req, res) {
   try {
     const { id } = req.params;
-    const { title, ownerId } = req.body;
+    let { title, ownerId } = req.body;
 
     const board = await prisma.board.findUnique({
       where: { id },
@@ -96,8 +98,12 @@ async function updateBoard(req, res) {
       }
     }
 
-    if (title !== undefined && !title.trim()) {
-      return res.status(400).json({ error: "Title cannot be empty" });
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({ error: "Title cannot be empty" });
+      }
+
+      title = title.trim();
     }
 
     const updatedBoard = await prisma.board.update({
