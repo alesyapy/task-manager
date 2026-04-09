@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/client";
 
 function BoardPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [board, setBoard] = useState(null);
   const [error, setError] = useState("");
@@ -12,6 +13,7 @@ function BoardPage() {
   const [cardForms, setCardForms] = useState({});
   const [editingCards, setEditingCards] = useState({});
   const [imageFiles, setImageFiles] = useState({});
+  const [editingColumns, setEditingColumns] = useState({});
 
   useEffect(() => {
     loadBoard();
@@ -21,8 +23,9 @@ function BoardPage() {
     try {
       const response = await api.get(`/boards/${id}`);
       setBoard(response.data);
+      setError("");
     } catch (err) {
-      setError("Не удалось загрузить доску");
+      setError(err.response?.data?.error || "Не удалось загрузить доску");
     }
   }
 
@@ -193,6 +196,72 @@ function BoardPage() {
     }
   }
 
+  function startEditColumn(column) {
+    setEditingColumns((prev) => ({
+      ...prev,
+      [column.id]: {
+        title: column.title || "",
+      },
+    }));
+  }
+
+  function handleEditColumnChange(columnId, value) {
+    setEditingColumns((prev) => ({
+      ...prev,
+      [columnId]: {
+        title: value,
+      },
+    }));
+  }
+
+  async function handleUpdateColumn(e, columnId) {
+    e.preventDefault();
+
+    const form = editingColumns[columnId];
+
+    try {
+      await api.patch(`/columns/${columnId}`, {
+        title: form.title,
+      });
+
+      setEditingColumns((prev) => {
+        const copy = { ...prev };
+        delete copy[columnId];
+        return copy;
+      });
+
+      loadBoard();
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось обновить колонку");
+    }
+  }
+
+  function cancelEditColumn(columnId) {
+    setEditingColumns((prev) => {
+      const copy = { ...prev };
+      delete copy[columnId];
+      return copy;
+    });
+  }
+
+  async function handleDeleteColumn(columnId) {
+    try {
+      await api.delete(`/columns/${columnId}`);
+      loadBoard();
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось удалить колонку");
+    }
+  }
+
+  async function handleDeleteBoard() {
+    try {
+      await api.delete(`/boards/${id}`);
+      navigate("/boards");
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось удалить доску");
+    }
+  }
+
   if (error) {
     return <div style={{ padding: "40px" }}>{error}</div>;
   }
@@ -203,7 +272,19 @@ function BoardPage() {
 
   return (
     <div style={{ padding: "40px" }}>
-      <h1>{board.title}</h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "24px",
+        }}
+      >
+        <h1>{board.title}</h1>
+        <button type="button" onClick={handleDeleteBoard}>
+          Удалить доску
+        </button>
+      </div>
 
       <form onSubmit={handleCreateColumn} style={{ marginBottom: "24px" }}>
         <input
@@ -219,6 +300,7 @@ function BoardPage() {
       <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
         {board.columns.map((column) => {
           const form = cardForms[column.id] || {};
+          const editColumnForm = editingColumns[column.id];
 
           return (
             <div
@@ -230,7 +312,42 @@ function BoardPage() {
                 borderRadius: "8px",
               }}
             >
-              <h3>{column.title}</h3>
+              {!editColumnForm ? (
+                <>
+                  <h3>{column.title}</h3>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                    <button type="button" onClick={() => startEditColumn(column)}>
+                      Редактировать колонку
+                    </button>
+                    <button type="button" onClick={() => handleDeleteColumn(column.id)}>
+                      Удалить колонку
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <form
+                  onSubmit={(e) => handleUpdateColumn(e, column.id)}
+                  style={{
+                    marginBottom: "12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={editColumnForm.title}
+                    onChange={(e) => handleEditColumnChange(column.id, e.target.value)}
+                    style={{ padding: "8px" }}
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button type="submit">Сохранить</button>
+                    <button type="button" onClick={() => cancelEditColumn(column.id)}>
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {column.cards.map((card) => {
                 const editForm = editingCards[card.id];
