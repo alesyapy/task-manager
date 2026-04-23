@@ -1,6 +1,273 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react";
 import api from "../api/client";
+
+function DraggableCard({
+  card,
+  columnId,
+  onDeleteCard,
+  onStartEditCard,
+  onImageFileChange,
+  onUploadImages,
+  onDeleteImage,
+  editForm,
+  onEditCardChange,
+  onUpdateCard,
+  onCancelEditCard,
+}) {
+  const { ref: dragRef, handleRef, isDragging } = useDraggable({
+    id: card.id,
+  });
+
+  const { ref: dropRef, isDropTarget } = useDroppable({
+    id: `card-${card.id}`,
+  });
+
+  function setRefs(node) {
+    dragRef(node);
+    dropRef(node);
+  }
+
+  return (
+    <div
+      ref={setRefs}
+      style={{
+        background: isDropTarget ? "#fff7d6" : "white",
+        padding: "12px",
+        borderRadius: "8px",
+        marginBottom: "10px",
+        opacity: isDragging ? 0.5 : 1,
+      }}
+    >
+      {!editForm ? (
+        <>
+          <div
+            ref={handleRef}
+            style={{
+              cursor: "grab",
+              marginBottom: "8px",
+              fontSize: "12px",
+              color: "#666",
+            }}
+          >
+            Перетащить
+          </div>
+
+          <strong>{card.title}</strong>
+
+          {card.description && <p>{card.description}</p>}
+
+          {card.dueDate && (
+            <p>Срок: {new Date(card.dueDate).toLocaleDateString()}</p>
+          )}
+
+          {card.images?.length > 0 && (
+            <div>
+              {card.images.map((image) => (
+                <div key={image.id} style={{ marginTop: "8px" }}>
+                  <img
+                    src={`http://localhost:3000${image.url}`}
+                    alt="card"
+                    style={{
+                      width: "100%",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onDeleteImage(image.id)}
+                    style={{ marginTop: "6px" }}
+                  >
+                    Удалить изображение
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop: "12px" }}>
+            <input
+              type="file"
+              multiple
+              onChange={(e) => onImageFileChange(card.id, e.target.files)}
+            />
+            <button
+              type="button"
+              onClick={() => onUploadImages(card.id)}
+              style={{ marginTop: "8px" }}
+            >
+              Загрузить изображение
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              marginTop: "10px",
+            }}
+          >
+            <button type="button" onClick={() => onStartEditCard(card)}>
+              Редактировать
+            </button>
+            <button type="button" onClick={() => onDeleteCard(card.id)}>
+              Удалить
+            </button>
+          </div>
+        </>
+      ) : (
+        <form
+          onSubmit={(e) => onUpdateCard(e, card.id)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <input
+            type="text"
+            value={editForm.title}
+            onChange={(e) =>
+              onEditCardChange(card.id, "title", e.target.value)
+            }
+            style={{ padding: "8px" }}
+          />
+
+          <textarea
+            value={editForm.description}
+            onChange={(e) =>
+              onEditCardChange(card.id, "description", e.target.value)
+            }
+            style={{ padding: "8px" }}
+          />
+
+          <input
+            type="date"
+            value={editForm.dueDate}
+            onChange={(e) =>
+              onEditCardChange(card.id, "dueDate", e.target.value)
+            }
+            style={{ padding: "8px" }}
+          />
+
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="submit">Сохранить</button>
+            <button type="button" onClick={() => onCancelEditCard(card.id)}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function DroppableColumn({
+  column,
+  children,
+  onStartEditColumn,
+  onDeleteColumn,
+  editColumnForm,
+  onEditColumnChange,
+  onUpdateColumn,
+  onCancelEditColumn,
+  cardForm,
+  onCardFormChange,
+  onCreateCard,
+}) {
+  const { ref, isDropTarget } = useDroppable({
+    id: column.id,
+  });
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        minWidth: "280px",
+        background: isDropTarget ? "#e7f3ff" : "#f3f3f3",
+        padding: "16px",
+        borderRadius: "8px",
+        transition: "background 0.2s",
+      }}
+    >
+      {!editColumnForm ? (
+        <>
+          <h3>{column.title}</h3>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <button type="button" onClick={() => onStartEditColumn(column)}>
+              Редактировать колонку
+            </button>
+            <button type="button" onClick={() => onDeleteColumn(column.id)}>
+              Удалить колонку
+            </button>
+          </div>
+        </>
+      ) : (
+        <form
+          onSubmit={(e) => onUpdateColumn(e, column.id)}
+          style={{
+            marginBottom: "12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <input
+            type="text"
+            value={editColumnForm.title}
+            onChange={(e) => onEditColumnChange(column.id, e.target.value)}
+            style={{ padding: "8px" }}
+          />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="submit">Сохранить</button>
+            <button type="button" onClick={() => onCancelEditColumn(column.id)}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      )}
+
+      {children}
+
+      <form
+        onSubmit={(e) => onCreateCard(e, column.id, column.cards.length)}
+        style={{
+          marginTop: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Название карточки"
+          value={cardForm.title || ""}
+          onChange={(e) => onCardFormChange(column.id, "title", e.target.value)}
+          style={{ padding: "8px" }}
+        />
+
+        <textarea
+          placeholder="Описание"
+          value={cardForm.description || ""}
+          onChange={(e) =>
+            onCardFormChange(column.id, "description", e.target.value)
+          }
+          style={{ padding: "8px" }}
+        />
+
+        <input
+          type="date"
+          value={cardForm.dueDate || ""}
+          onChange={(e) => onCardFormChange(column.id, "dueDate", e.target.value)}
+          style={{ padding: "8px" }}
+        />
+
+        <button type="submit">Добавить карточку</button>
+      </form>
+    </div>
+  );
+}
 
 function BoardPage() {
   const { id } = useParams();
@@ -262,6 +529,119 @@ function BoardPage() {
     }
   }
 
+  async function handleDragEnd(event) {
+    if (event.canceled) return;
+
+    const draggedCardId = event.operation.source?.id;
+    const targetId = event.operation.target?.id;
+
+    if (!draggedCardId || !targetId) return;
+
+    let sourceColumn = null;
+    let movedCard = null;
+
+    for (const column of board.columns) {
+      const found = column.cards.find((card) => card.id === draggedCardId);
+      if (found) {
+        sourceColumn = column;
+        movedCard = found;
+        break;
+      }
+    }
+
+    if (!sourceColumn || !movedCard) return;
+
+    let targetColumnId = null;
+    let insertIndex = null;
+
+    // если бросили на колонку — вставляем в конец
+    const directColumn = board.columns.find((column) => column.id === targetId);
+    if (directColumn) {
+      targetColumnId = directColumn.id;
+      insertIndex = directColumn.cards.length;
+    }
+
+    // если бросили на карточку — вставляем перед этой карточкой
+    if (targetId.startsWith("card-")) {
+      const targetCardId = targetId.replace("card-", "");
+
+      for (const column of board.columns) {
+        const index = column.cards.findIndex((card) => card.id === targetCardId);
+        if (index !== -1) {
+          targetColumnId = column.id;
+          insertIndex = index;
+          break;
+        }
+      }
+    }
+
+    if (targetColumnId === null || insertIndex === null) return;
+
+    const previousBoard = board;
+
+    // убираем карточку из старой колонки
+    const boardWithoutCard = {
+      ...board,
+      columns: board.columns.map((column) => ({
+        ...column,
+        cards: column.cards.filter((card) => card.id !== draggedCardId),
+      })),
+    };
+
+    // если перенос внутри той же колонки и карточка стояла выше,
+    // после удаления индекс нужно уменьшить на 1
+    if (sourceColumn.id === targetColumnId) {
+      const oldIndex = sourceColumn.cards.findIndex((card) => card.id === draggedCardId);
+      if (oldIndex !== -1 && oldIndex < insertIndex) {
+        insertIndex -= 1;
+      }
+    }
+
+    const newColumns = boardWithoutCard.columns.map((column) => {
+      if (column.id !== targetColumnId) return column;
+
+      const newCards = [...column.cards];
+      newCards.splice(insertIndex, 0, { ...movedCard, columnId: targetColumnId });
+
+      return {
+        ...column,
+        cards: newCards.map((card, index) => ({
+          ...card,
+          order: index,
+        })),
+      };
+    });
+
+    const updatedBoard = {
+      ...boardWithoutCard,
+      columns: newColumns,
+    };
+
+    setBoard(updatedBoard);
+
+    try {
+      const targetColumn = updatedBoard.columns.find((column) => column.id === targetColumnId);
+
+      // сохраняем moved card
+      await api.patch(`/cards/${draggedCardId}`, {
+        columnId: targetColumnId,
+        order: insertIndex,
+      });
+
+      // обновляем order остальных карточек целевой колонки
+      const patchRequests = targetColumn.cards.map((card, index) =>
+        api.patch(`/cards/${card.id}`, {
+          order: index,
+        })
+      );
+
+      await Promise.all(patchRequests);
+    } catch (err) {
+      setBoard(previousBoard);
+      setError(err.response?.data?.error || "Не удалось переместить карточку");
+    }
+  }
+
   if (error) {
     return <div style={{ padding: "40px" }}>{error}</div>;
   }
@@ -271,268 +651,74 @@ function BoardPage() {
   }
 
   return (
-    <div style={{ padding: "40px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-        }}
-      >
-        <h1>{board.title}</h1>
-        <button type="button" onClick={handleDeleteBoard}>
-          Удалить доску
-        </button>
-      </div>
+    <DragDropProvider onDragEnd={handleDragEnd}>
+      <div style={{ padding: "40px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "24px",
+          }}
+        >
+          <h1>{board.title}</h1>
+          <button type="button" onClick={handleDeleteBoard}>
+            Удалить доску
+          </button>
+        </div>
 
-      <form onSubmit={handleCreateColumn} style={{ marginBottom: "24px" }}>
-        <input
-          type="text"
-          placeholder="Название новой колонки"
-          value={newColumnTitle}
-          onChange={(e) => setNewColumnTitle(e.target.value)}
-          style={{ padding: "8px", marginRight: "8px" }}
-        />
-        <button type="submit">Создать колонку</button>
-      </form>
+        <form onSubmit={handleCreateColumn} style={{ marginBottom: "24px" }}>
+          <input
+            type="text"
+            placeholder="Название новой колонки"
+            value={newColumnTitle}
+            onChange={(e) => setNewColumnTitle(e.target.value)}
+            style={{ padding: "8px", marginRight: "8px" }}
+          />
+          <button type="submit">Создать колонку</button>
+        </form>
 
-      <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
-        {board.columns.map((column) => {
-          const form = cardForms[column.id] || {};
-          const editColumnForm = editingColumns[column.id];
+        <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+          {board.columns.map((column) => {
+            const form = cardForms[column.id] || {};
+            const editColumnForm = editingColumns[column.id];
 
-          return (
-            <div
-              key={column.id}
-              style={{
-                minWidth: "280px",
-                background: "#f3f3f3",
-                padding: "16px",
-                borderRadius: "8px",
-              }}
-            >
-              {!editColumnForm ? (
-                <>
-                  <h3>{column.title}</h3>
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-                    <button type="button" onClick={() => startEditColumn(column)}>
-                      Редактировать колонку
-                    </button>
-                    <button type="button" onClick={() => handleDeleteColumn(column.id)}>
-                      Удалить колонку
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <form
-                  onSubmit={(e) => handleUpdateColumn(e, column.id)}
-                  style={{
-                    marginBottom: "12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={editColumnForm.title}
-                    onChange={(e) => handleEditColumnChange(column.id, e.target.value)}
-                    style={{ padding: "8px" }}
-                  />
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button type="submit">Сохранить</button>
-                    <button type="button" onClick={() => cancelEditColumn(column.id)}>
-                      Отмена
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {column.cards.map((card) => {
-                const editForm = editingCards[card.id];
-
-                return (
-                  <div
-                    key={card.id}
-                    style={{
-                      background: "white",
-                      padding: "12px",
-                      borderRadius: "8px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    {!editForm ? (
-                      <>
-                        <strong>{card.title}</strong>
-
-                        {card.description && <p>{card.description}</p>}
-
-                        {card.dueDate && (
-                          <p>
-                            Срок: {new Date(card.dueDate).toLocaleDateString()}
-                          </p>
-                        )}
-
-                        {card.images?.length > 0 && (
-                          <div>
-                            {card.images.map((image) => (
-                              <div key={image.id} style={{ marginTop: "8px" }}>
-                                <img
-                                  src={`http://localhost:3000${image.url}`}
-                                  alt="card"
-                                  style={{
-                                    width: "100%",
-                                    borderRadius: "6px",
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteImage(image.id)}
-                                  style={{ marginTop: "6px" }}
-                                >
-                                  Удалить изображение
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div style={{ marginTop: "12px" }}>
-                          <input
-                            type="file"
-                            multiple
-                            onChange={(e) =>
-                              handleImageFileChange(card.id, e.target.files)
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleUploadImages(card.id)}
-                            style={{ marginTop: "8px" }}
-                          >
-                            Загрузить изображение
-                          </button>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            marginTop: "10px",
-                          }}
-                        >
-                          <button type="button" onClick={() => startEditCard(card)}>
-                            Редактировать
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCard(card.id)}
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <form
-                        onSubmit={(e) => handleUpdateCard(e, card.id)}
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "8px",
-                        }}
-                      >
-                        <input
-                          type="text"
-                          value={editForm.title}
-                          onChange={(e) =>
-                            handleEditCardChange(card.id, "title", e.target.value)
-                          }
-                          style={{ padding: "8px" }}
-                        />
-
-                        <textarea
-                          value={editForm.description}
-                          onChange={(e) =>
-                            handleEditCardChange(
-                              card.id,
-                              "description",
-                              e.target.value
-                            )
-                          }
-                          style={{ padding: "8px" }}
-                        />
-
-                        <input
-                          type="date"
-                          value={editForm.dueDate}
-                          onChange={(e) =>
-                            handleEditCardChange(card.id, "dueDate", e.target.value)
-                          }
-                          style={{ padding: "8px" }}
-                        />
-
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button type="submit">Сохранить</button>
-                          <button
-                            type="button"
-                            onClick={() => cancelEditCard(card.id)}
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                );
-              })}
-
-              <form
-                onSubmit={(e) =>
-                  handleCreateCard(e, column.id, column.cards.length)
-                }
-                style={{
-                  marginTop: "16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
+            return (
+              <DroppableColumn
+                key={column.id}
+                column={column}
+                onStartEditColumn={startEditColumn}
+                onDeleteColumn={handleDeleteColumn}
+                editColumnForm={editColumnForm}
+                onEditColumnChange={handleEditColumnChange}
+                onUpdateColumn={handleUpdateColumn}
+                onCancelEditColumn={cancelEditColumn}
+                cardForm={form}
+                onCardFormChange={handleCardFormChange}
+                onCreateCard={handleCreateCard}
               >
-                <input
-                  type="text"
-                  placeholder="Название карточки"
-                  value={form.title || ""}
-                  onChange={(e) =>
-                    handleCardFormChange(column.id, "title", e.target.value)
-                  }
-                  style={{ padding: "8px" }}
-                />
-
-                <textarea
-                  placeholder="Описание"
-                  value={form.description || ""}
-                  onChange={(e) =>
-                    handleCardFormChange(column.id, "description", e.target.value)
-                  }
-                  style={{ padding: "8px" }}
-                />
-
-                <input
-                  type="date"
-                  value={form.dueDate || ""}
-                  onChange={(e) =>
-                    handleCardFormChange(column.id, "dueDate", e.target.value)
-                  }
-                  style={{ padding: "8px" }}
-                />
-
-                <button type="submit">Добавить карточку</button>
-              </form>
-            </div>
-          );
-        })}
+                {column.cards.map((card) => (
+                  <DraggableCard
+                    key={card.id}
+                    card={card}
+                    columnId={column.id}
+                    onDeleteCard={handleDeleteCard}
+                    onStartEditCard={startEditCard}
+                    onImageFileChange={handleImageFileChange}
+                    onUploadImages={handleUploadImages}
+                    onDeleteImage={handleDeleteImage}
+                    editForm={editingCards[card.id]}
+                    onEditCardChange={handleEditCardChange}
+                    onUpdateCard={handleUpdateCard}
+                    onCancelEditCard={cancelEditCard}
+                  />
+                ))}
+              </DroppableColumn>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </DragDropProvider>
   );
 }
 
