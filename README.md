@@ -35,8 +35,3 @@ npm run dev
 cd frontend  
 npm install  
 npm run dev  
-
-## Примечания
-
-- изображения сохраняются локально
-- drag-and-drop реализован в базовом виде
