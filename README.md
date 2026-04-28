@@ -16,6 +16,7 @@
 
 Frontend:
 - React + Vite
+- Redux Toolkit
 
 Backend:
 - Node.js + Express
