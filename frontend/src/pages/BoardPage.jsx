@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropProvider } from "@dnd-kit/react";
+
 import api from "../api/client";
 import DraggableCard from "../components/kanban/DraggableCard";
 import DroppableColumn from "../components/kanban/DroppableColumn";
+import CardModal from "../components/kanban/CardModal";
+
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
@@ -17,11 +20,20 @@ function BoardPage() {
   const [error, setError] = useState("");
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [showCreateColumnForm, setShowCreateColumnForm] = useState(false);
+
   const [cardForms, setCardForms] = useState({});
   const [editingCards, setEditingCards] = useState({});
   const [imageFiles, setImageFiles] = useState({});
   const [editingColumns, setEditingColumns] = useState({});
+  const [selectedCardId, setSelectedCardId] = useState(null);
+
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
+
+  const selectedCard = selectedCardId
+    ? board?.columns
+        ?.flatMap((column) => column.cards)
+        .find((card) => card.id === selectedCardId)
+    : null;
 
   useEffect(() => {
     loadBoard();
@@ -63,7 +75,7 @@ function BoardPage() {
 
       setNewColumnTitle("");
       setShowCreateColumnForm(false);
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось создать колонку");
     }
@@ -102,7 +114,7 @@ function BoardPage() {
         },
       }));
 
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось создать карточку");
     }
@@ -111,7 +123,8 @@ function BoardPage() {
   async function handleDeleteCard(cardId) {
     try {
       await api.delete(`/cards/${cardId}`);
-      loadBoard();
+      setSelectedCardId(null);
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось удалить карточку");
     }
@@ -126,6 +139,14 @@ function BoardPage() {
         dueDate: card.dueDate ? card.dueDate.slice(0, 10) : "",
       },
     }));
+  }
+
+  function openCardModal(card) {
+    setSelectedCardId(card.id);
+  }
+
+  function closeCardModal() {
+    setSelectedCardId(null);
   }
 
   function handleEditCardChange(cardId, field, value) {
@@ -150,24 +171,10 @@ function BoardPage() {
         dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       });
 
-      setEditingCards((prev) => {
-        const copy = { ...prev };
-        delete copy[cardId];
-        return copy;
-      });
-
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось обновить карточку");
     }
-  }
-
-  function cancelEditCard(cardId) {
-    setEditingCards((prev) => {
-      const copy = { ...prev };
-      delete copy[cardId];
-      return copy;
-    });
   }
 
   function handleImageFileChange(cardId, files) {
@@ -177,9 +184,9 @@ function BoardPage() {
     }));
   }
 
-  async function handleUploadImages(cardId) {
+  async function handleUploadImages(cardId, selectedFiles = null) {
     try {
-      const files = imageFiles[cardId];
+      const files = selectedFiles || imageFiles[cardId];
 
       if (!files || files.length === 0) {
         setError("Выберите хотя бы один файл");
@@ -204,7 +211,8 @@ function BoardPage() {
         return copy;
       });
 
-      loadBoard();
+      setError("");
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось загрузить изображения");
     }
@@ -213,7 +221,7 @@ function BoardPage() {
   async function handleDeleteImage(imageId) {
     try {
       await api.delete(`/cards/images/${imageId}`);
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось удалить изображение");
     }
@@ -253,7 +261,7 @@ function BoardPage() {
         return copy;
       });
 
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось обновить колонку");
     }
@@ -270,7 +278,7 @@ function BoardPage() {
   async function handleDeleteColumn(columnId) {
     try {
       await api.delete(`/columns/${columnId}`);
-      loadBoard();
+      await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || "Не удалось удалить колонку");
     }
@@ -314,19 +322,29 @@ function BoardPage() {
     let insertIndex = null;
 
     const directColumn = board.columns.find((column) => column.id === targetId);
+
     if (directColumn) {
       targetColumnId = directColumn.id;
       insertIndex = directColumn.cards.length;
     }
 
-    if (targetId.startsWith("card-")) {
-      const targetCardId = targetId.replace("card-", "");
+    if (
+      targetId.startsWith("card-top-") ||
+      targetId.startsWith("card-bottom-")
+    ) {
+      const isBottom = targetId.startsWith("card-bottom-");
+      const targetCardId = targetId
+        .replace("card-top-", "")
+        .replace("card-bottom-", "");
 
       for (const column of board.columns) {
-        const index = column.cards.findIndex((card) => card.id === targetCardId);
+        const index = column.cards.findIndex(
+          (card) => card.id === targetCardId
+        );
+
         if (index !== -1) {
           targetColumnId = column.id;
-          insertIndex = index;
+          insertIndex = isBottom ? index + 1 : index;
           break;
         }
       }
@@ -345,7 +363,10 @@ function BoardPage() {
     };
 
     if (sourceColumn.id === targetColumnId) {
-      const oldIndex = sourceColumn.cards.findIndex((card) => card.id === draggedCardId);
+      const oldIndex = sourceColumn.cards.findIndex(
+        (card) => card.id === draggedCardId
+      );
+
       if (oldIndex !== -1 && oldIndex < insertIndex) {
         insertIndex -= 1;
       }
@@ -355,7 +376,11 @@ function BoardPage() {
       if (column.id !== targetColumnId) return column;
 
       const newCards = [...column.cards];
-      newCards.splice(insertIndex, 0, { ...movedCard, columnId: targetColumnId });
+
+      newCards.splice(insertIndex, 0, {
+        ...movedCard,
+        columnId: targetColumnId,
+      });
 
       return {
         ...column,
@@ -401,11 +426,16 @@ function BoardPage() {
       <PageContainer
         style={{
           minHeight: "100vh",
-          paddingTop: "60px",
+          width: "100%",
+          maxWidth: "none",
+          margin: "0",
+          padding: "60px 32px",
         }}
       >
         <Card>
-          <p style={{ color: "var(--color-text-secondary)" }}>Загрузка доски...</p>
+          <p style={{ color: "var(--color-text-secondary)" }}>
+            Загрузка доски...
+          </p>
         </Card>
       </PageContainer>
     );
@@ -416,8 +446,10 @@ function BoardPage() {
       <PageContainer
         style={{
           minHeight: "100vh",
-          paddingTop: isMobile ? "32px" : "52px",
-          paddingBottom: "40px",
+          width: "100%",
+          maxWidth: "none",
+          margin: "0",
+          padding: isMobile ? "32px 20px 40px" : "52px 32px 40px",
           position: "relative",
           overflow: "hidden",
         }}
@@ -450,7 +482,13 @@ function BoardPage() {
           }}
         />
 
-        <div style={{ position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -511,6 +549,7 @@ function BoardPage() {
               >
                 Назад
               </Button>
+
               <Button
                 type="button"
                 variant="danger"
@@ -536,11 +575,7 @@ function BoardPage() {
             </div>
           )}
 
-          <Card
-            style={{
-              marginBottom: "26px",
-            }}
-          >
+          <Card style={{ marginBottom: "26px" }}>
             <div
               style={{
                 display: "flex",
@@ -588,6 +623,7 @@ function BoardPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   boxShadow: "0 10px 24px rgba(110,160,210,0.12)",
+                  cursor: "pointer",
                 }}
                 title="Создать колонку"
               >
@@ -636,7 +672,8 @@ function BoardPage() {
               display: "flex",
               gap: "20px",
               overflowX: "auto",
-              paddingBottom: "10px",
+              paddingBottom: "14px",
+              width: "100%",
             }}
           >
             {board?.columns?.map((column) => {
@@ -662,14 +699,7 @@ function BoardPage() {
                       key={card.id}
                       card={card}
                       onDeleteCard={handleDeleteCard}
-                      onStartEditCard={startEditCard}
-                      onImageFileChange={handleImageFileChange}
-                      onUploadImages={handleUploadImages}
-                      onDeleteImage={handleDeleteImage}
-                      editForm={editingCards[card.id]}
-                      onEditCardChange={handleEditCardChange}
-                      onUpdateCard={handleUpdateCard}
-                      onCancelEditCard={cancelEditCard}
+                      onOpenModal={openCardModal}
                     />
                   ))}
                 </DroppableColumn>
@@ -677,11 +707,7 @@ function BoardPage() {
             })}
 
             {board?.columns?.length === 0 && (
-              <Card
-                style={{
-                  minWidth: "320px",
-                }}
-              >
+              <Card style={{ minWidth: "320px" }}>
                 <h3
                   style={{
                     fontSize: "24px",
@@ -703,6 +729,20 @@ function BoardPage() {
             )}
           </div>
         </div>
+
+        {selectedCard && (
+          <CardModal
+            card={selectedCard}
+            editForm={editingCards[selectedCard.id]}
+            onClose={closeCardModal}
+            onStartEdit={startEditCard}
+            onEditChange={handleEditCardChange}
+            onSave={handleUpdateCard}
+            onImageFileChange={handleImageFileChange}
+            onUploadImages={handleUploadImages}
+            onDeleteImage={handleDeleteImage}
+          />
+        )}
       </PageContainer>
     </DragDropProvider>
   );

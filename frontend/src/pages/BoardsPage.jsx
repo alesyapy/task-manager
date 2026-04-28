@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
 import api from "../api/client";
 
 import Button from "../components/ui/Button";
@@ -10,6 +11,8 @@ import PageContainer from "../components/layout/PageContainer";
 function BoardsPage() {
   const [boards, setBoards] = useState([]);
   const [newBoardTitle, setNewBoardTitle] = useState("");
+  const [editingBoardId, setEditingBoardId] = useState(null);
+  const [editingBoardTitle, setEditingBoardTitle] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
@@ -74,8 +77,47 @@ function BoardsPage() {
       setBoards((prev) => [...prev, response.data]);
       setNewBoardTitle("");
     } catch (err) {
-      console.log("Ошибка создания доски:", err.response?.data || err);
       setError(err.response?.data?.error || "Не удалось создать доску");
+    }
+  }
+
+  function startEditBoard(board) {
+    setEditingBoardId(board.id);
+    setEditingBoardTitle(board.title);
+    setError("");
+  }
+
+  function cancelEditBoard() {
+    setEditingBoardId(null);
+    setEditingBoardTitle("");
+  }
+
+  async function handleUpdateBoard(e, boardId) {
+    e.preventDefault();
+    setError("");
+
+    const trimmedTitle = editingBoardTitle.trim();
+
+    if (!trimmedTitle) {
+      setError("Введите название доски");
+      return;
+    }
+
+    try {
+      const response = await api.patch(`/boards/${boardId}`, {
+        title: trimmedTitle,
+      });
+
+      setBoards((prev) =>
+        prev.map((board) =>
+          board.id === boardId ? { ...board, ...response.data } : board
+        )
+      );
+
+      setEditingBoardId(null);
+      setEditingBoardTitle("");
+    } catch (err) {
+      setError(err.response?.data?.error || "Не удалось изменить доску");
     }
   }
 
@@ -119,7 +161,9 @@ function BoardsPage() {
         serverMessage.toLowerCase().includes("cannot delete user") &&
         serverMessage.toLowerCase().includes("boards")
       ) {
-        setError("Нельзя удалить аккаунт, пока у вас есть доски. Сначала удалите все доски.");
+        setError(
+          "Нельзя удалить аккаунт, пока у вас есть доски. Сначала удалите все доски."
+        );
       } else {
         setError(serverMessage || "Не удалось удалить аккаунт");
       }
@@ -402,42 +446,109 @@ function BoardsPage() {
                         position: "relative",
                       }}
                     >
-                      <button
-                        onClick={() => handleDeleteBoard(board.id)}
-                        title="Удалить доску"
+                      <div
                         style={{
                           position: "absolute",
                           top: "0",
                           right: "0",
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "12px",
-                          border: "1px solid rgba(220, 107, 107, 0.20)",
-                          background: "rgba(255, 240, 240, 0.9)",
-                          color: "#c75b5b",
-                          fontSize: "18px",
                           display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          boxShadow: "0 6px 14px rgba(199, 91, 91, 0.10)",
+                          gap: "8px",
                         }}
                       >
-                        🗑️
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => startEditBoard(board)}
+                          title="Редактировать доску"
+                          style={{
+                            width: "38px",
+                            height: "38px",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(124,194,246,0.28)",
+                            background: "rgba(255,255,255,0.82)",
+                            color: "var(--color-primary-strong)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow:
+                              "0 6px 14px rgba(110,160,210,0.08)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Pencil size={16} />
+                        </button>
 
-                      
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBoard(board.id)}
+                          title="Удалить доску"
+                          style={{
+                            width: "38px",
+                            height: "38px",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(220,107,107,0.20)",
+                            background: "rgba(255,240,240,0.9)",
+                            color: "#c75b5b",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow:
+                              "0 6px 14px rgba(199,91,91,0.08)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
 
-                      <h3
-                        style={{
-                          fontSize: "24px",
-                          color: "var(--color-text)",
-                          marginBottom: "10px",
-                          wordBreak: "break-word",
-                          paddingRight: "48px",
-                        }}
-                      >
-                        {board.title}
-                      </h3>
+                      {editingBoardId === board.id ? (
+                        <form
+                          onSubmit={(e) => handleUpdateBoard(e, board.id)}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                            paddingRight: "88px",
+                            marginBottom: "18px",
+                          }}
+                        >
+                          <Input
+                            type="text"
+                            value={editingBoardTitle}
+                            onChange={(e) =>
+                              setEditingBoardTitle(e.target.value)
+                            }
+                          />
+
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "10px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <Button type="submit">Сохранить</Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={cancelEditBoard}
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <h3
+                          style={{
+                            fontSize: "24px",
+                            color: "var(--color-text)",
+                            marginBottom: "10px",
+                            wordBreak: "break-word",
+                            paddingRight: "88px",
+                          }}
+                        >
+                          {board.title}
+                        </h3>
+                      )}
 
                       <p
                         style={{
