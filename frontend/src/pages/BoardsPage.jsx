@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { Pencil, Trash2 } from "lucide-react";
+
 import api from "../api/client";
+
+import {
+  setBoards,
+  addBoard,
+  updateBoard,
+  removeBoard,
+  setBoardsLoading,
+  setBoardsError,
+  clearBoards,
+} from "../store/boardsSlice";
+import { logout } from "../store/authSlice";
 
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -9,18 +22,20 @@ import Card from "../components/ui/Card";
 import PageContainer from "../components/layout/PageContainer";
 
 function BoardsPage() {
-  const [boards, setBoards] = useState([]);
   const [newBoardTitle, setNewBoardTitle] = useState("");
   const [editingBoardId, setEditingBoardId] = useState(null);
   const [editingBoardTitle, setEditingBoardTitle] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
 
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const userId = localStorage.getItem("userId");
-  const username = localStorage.getItem("username");
+  const { userId, username } = useSelector((state) => state.auth);
+  const {
+    items: boards,
+    loading,
+    error,
+  } = useSelector((state) => state.boards);
 
   useEffect(() => {
     function handleResize() {
@@ -32,39 +47,47 @@ function BoardsPage() {
   }, []);
 
   useEffect(() => {
+    if (!userId) {
+      navigate("/");
+      return;
+    }
+
     loadBoards();
-  }, []);
+  }, [userId]);
 
   async function loadBoards() {
-    setLoading(true);
-    setError("");
+    dispatch(setBoardsLoading(true));
+    dispatch(setBoardsError(""));
 
     try {
       const response = await api.get("/boards");
       const userBoards = response.data.filter(
         (board) => String(board.ownerId) === String(userId)
       );
-      setBoards(userBoards);
+
+      dispatch(setBoards(userBoards));
     } catch (err) {
-      setError(err.response?.data?.error || "Не удалось загрузить доски");
+      dispatch(
+        setBoardsError(err.response?.data?.error || "Не удалось загрузить доски")
+      );
     } finally {
-      setLoading(false);
+      dispatch(setBoardsLoading(false));
     }
   }
 
   async function handleCreateBoard(e) {
     e.preventDefault();
-    setError("");
+    dispatch(setBoardsError(""));
 
     const trimmedTitle = newBoardTitle.trim();
 
     if (!trimmedTitle) {
-      setError("Введите название доски");
+      dispatch(setBoardsError("Введите название доски"));
       return;
     }
 
     if (!userId) {
-      setError("Не найден userId. Войдите заново.");
+      dispatch(setBoardsError("Не найден userId. Войдите заново."));
       return;
     }
 
@@ -74,17 +97,19 @@ function BoardsPage() {
         ownerId: userId,
       });
 
-      setBoards((prev) => [...prev, response.data]);
+      dispatch(addBoard(response.data));
       setNewBoardTitle("");
     } catch (err) {
-      setError(err.response?.data?.error || "Не удалось создать доску");
+      dispatch(
+        setBoardsError(err.response?.data?.error || "Не удалось создать доску")
+      );
     }
   }
 
   function startEditBoard(board) {
     setEditingBoardId(board.id);
     setEditingBoardTitle(board.title);
-    setError("");
+    dispatch(setBoardsError(""));
   }
 
   function cancelEditBoard() {
@@ -94,12 +119,12 @@ function BoardsPage() {
 
   async function handleUpdateBoard(e, boardId) {
     e.preventDefault();
-    setError("");
+    dispatch(setBoardsError(""));
 
     const trimmedTitle = editingBoardTitle.trim();
 
     if (!trimmedTitle) {
-      setError("Введите название доски");
+      dispatch(setBoardsError("Введите название доски"));
       return;
     }
 
@@ -108,35 +133,33 @@ function BoardsPage() {
         title: trimmedTitle,
       });
 
-      setBoards((prev) =>
-        prev.map((board) =>
-          board.id === boardId ? { ...board, ...response.data } : board
-        )
-      );
-
+      dispatch(updateBoard(response.data));
       setEditingBoardId(null);
       setEditingBoardTitle("");
     } catch (err) {
-      setError(err.response?.data?.error || "Не удалось изменить доску");
+      dispatch(
+        setBoardsError(err.response?.data?.error || "Не удалось изменить доску")
+      );
     }
   }
 
   function handleLogout() {
-    localStorage.removeItem("userId");
-    localStorage.removeItem("username");
+    dispatch(logout());
+    dispatch(clearBoards());
     navigate("/");
   }
 
   async function handleDeleteBoard(boardId) {
     const confirmed = window.confirm("Удалить эту доску?");
-
     if (!confirmed) return;
 
     try {
       await api.delete(`/boards/${boardId}`);
-      setBoards((prev) => prev.filter((board) => board.id !== boardId));
+      dispatch(removeBoard(boardId));
     } catch (err) {
-      setError(err.response?.data?.error || "Не удалось удалить доску");
+      dispatch(
+        setBoardsError(err.response?.data?.error || "Не удалось удалить доску")
+      );
     }
   }
 
@@ -147,12 +170,14 @@ function BoardsPage() {
 
     if (!confirmed) return;
 
-    setError("");
+    dispatch(setBoardsError(""));
 
     try {
       await api.delete(`/users/${userId}`);
-      localStorage.removeItem("userId");
-      localStorage.removeItem("username");
+
+      dispatch(logout());
+      dispatch(clearBoards());
+
       navigate("/");
     } catch (err) {
       const serverMessage = err.response?.data?.error || "";
@@ -161,11 +186,13 @@ function BoardsPage() {
         serverMessage.toLowerCase().includes("cannot delete user") &&
         serverMessage.toLowerCase().includes("boards")
       ) {
-        setError(
-          "Нельзя удалить аккаунт, пока у вас есть доски. Сначала удалите все доски."
+        dispatch(
+          setBoardsError(
+            "Нельзя удалить аккаунт, пока у вас есть доски. Сначала удалите все доски."
+          )
         );
       } else {
-        setError(serverMessage || "Не удалось удалить аккаунт");
+        dispatch(setBoardsError(serverMessage || "Не удалось удалить аккаунт"));
       }
     }
   }
@@ -459,20 +486,7 @@ function BoardsPage() {
                           type="button"
                           onClick={() => startEditBoard(board)}
                           title="Редактировать доску"
-                          style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "12px",
-                            border: "1px solid rgba(124,194,246,0.28)",
-                            background: "rgba(255,255,255,0.82)",
-                            color: "var(--color-primary-strong)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow:
-                              "0 6px 14px rgba(110,160,210,0.08)",
-                            cursor: "pointer",
-                          }}
+                          style={iconButtonStyle}
                         >
                           <Pencil size={16} />
                         </button>
@@ -482,18 +496,10 @@ function BoardsPage() {
                           onClick={() => handleDeleteBoard(board.id)}
                           title="Удалить доску"
                           style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "12px",
+                            ...iconButtonStyle,
                             border: "1px solid rgba(220,107,107,0.20)",
                             background: "rgba(255,240,240,0.9)",
                             color: "#c75b5b",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow:
-                              "0 6px 14px rgba(199,91,91,0.08)",
-                            cursor: "pointer",
                           }}
                         >
                           <Trash2 size={16} />
@@ -576,5 +582,19 @@ function BoardsPage() {
     </PageContainer>
   );
 }
+
+const iconButtonStyle = {
+  width: "38px",
+  height: "38px",
+  borderRadius: "12px",
+  border: "1px solid rgba(124,194,246,0.28)",
+  background: "rgba(255,255,255,0.82)",
+  color: "var(--color-primary-strong)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 6px 14px rgba(110,160,210,0.08)",
+  cursor: "pointer",
+};
 
 export default BoardsPage;

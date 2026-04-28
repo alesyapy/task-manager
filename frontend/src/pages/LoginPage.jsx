@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+
 import api from "../api/client";
+import { setUser } from "../store/authSlice";
 
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -11,7 +14,9 @@ function LoginPage() {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
+
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     function handleResize() {
@@ -26,17 +31,26 @@ function LoginPage() {
     e.preventDefault();
     setError("");
 
+    if (!username.trim()) {
+      setError("Введите имя пользователя");
+      return;
+    }
+
     try {
       const response = await api.post("/auth/login", {
-        username,
+        username: username.trim(),
       });
 
-      localStorage.setItem("userId", response.data.id);
-      localStorage.setItem("username", response.data.username);
+      dispatch(
+        setUser({
+          userId: response.data.id,
+          username: response.data.username,
+        })
+      );
 
       navigate("/boards");
     } catch (err) {
-      setError(err.response?.data?.error || "Login failed");
+      setError(err.response?.data?.error || "Не удалось выполнить вход");
     }
   }
 
